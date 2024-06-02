@@ -1,20 +1,15 @@
-#ifndef __SYMMETRY_OPERATIONS_HPP__
-#define __SYMMETRY_OPERATIONS_HPP__
+#ifndef __SYMMETRY_ANALYZER_OPERATIONS_HPP__
+#define __SYMMETRY_ANALYZER_OPERATIONS_HPP__
 
-#define eigen_assert(X)                     \
-  do {                                      \
-    if (!(X)) throw std::runtime_error(#X); \
-  } while (false);
-#if defined(WIN32) || defined(_WIN32) || \
-    defined(__WIN32) && !defined(__CYGWIN__)
-
-#else
 #ifndef __EIGEN__
 #include <eigen3/Eigen/Dense>
-#include <eigen3/Eigen/StdVector>
 #endif
-#endif
+
 #include <vector>
+
+#ifndef __SYMMETRY_ANALYZER_CONSTANTS_HPP__
+#include "constants.hpp"
+#endif
 
 template <typename T>
 using vector = std::vector<T, Eigen::aligned_allocator<T>>;
@@ -23,9 +18,6 @@ using matrix4d = Eigen::Matrix<double, 4, 4>;
 using vector4d = Eigen::Matrix<double, 4, 1>;
 using matrix3d = Eigen::Matrix<double, 3, 3>;
 using vector3d = Eigen::Matrix<double, 3, 1>;
-
-constexpr double DEFAULT_SYMMETRY_TOLERANCE = 0.01;
-constexpr double DEFAULT_EQUIVALENCE_TOLERANCE = 0.001;
 
 class SymmetryOperations {
  public:

@@ -1,10 +1,13 @@
+#if !defined(__SYMMETRY_ANALYZER_CONSTANTS_HPP__)
+#include "constants.hpp"
+#endif
+
+#if !defined(__SYMMETRY_ANALYZER_OPERATIONS_HPP__)
 #include "symmetry_operations.hpp"
+#endif
 
 #include <algorithm>
 #include <cmath>
-
-constexpr double PI = 3.14159265359;
-enum class coordinate_labels : int { x = 0, y = 1, z = 3 };
 
 template <typename T>
 constexpr T to_radians(T num) {
