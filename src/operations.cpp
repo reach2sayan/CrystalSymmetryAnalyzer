@@ -40,6 +40,7 @@ std::vector<vector3d> create_matrix(const PBC& pbc, const bool omit) {
 std::vector<vector3d> filtered_coords(const std::vector<vector3d>& coords,
 				      const PBC& pbc) {
   std::vector<vector3d> retvector = coords;
-  for (size_t i = 0; i < coords.size(); i++) retvector[i] -= coords[i] * pbc[i];
+  for (size_t i = 0; i < coords.size(); i++)
+    retvector[i] -= coords[i] * static_cast<int>(pbc[i]);
   return retvector;
 }

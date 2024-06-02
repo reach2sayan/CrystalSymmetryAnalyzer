@@ -1,9 +1,11 @@
 #ifndef __OPERATIONS_HPP__
 #define __OPERATIONS_HPP__
 
+#if !defined(__SYMMETRY_ANALYZER_OPERATIONS_HPP__)
+#include "symmetry_operations.hpp"
+#endif
+
 #include <array>
-#include <eigen3/Eigen/Dense>
-#include <vector>
 
 using PBC = Eigen::Matrix<bool, 3, 1>;
 using vector3d = Eigen::Matrix<double, 3, 1>;

@@ -201,3 +201,11 @@ SymmetryOperations rotoreflection(const vector3d& axis, double angle,
 
   return {rot.get_matrix() * refl.get_matrix(), DEFAULT_SYMMETRY_TOLERANCE};
 }
+
+template <size_t rank>
+Eigen::Tensor<double, rank> SymmetryOperations::transform_tensor(
+    const Eigen::Tensor<double, rank>& tensor) const {
+  return affine_transformation_matrix.transpose() * tensor *
+	 affine_transformation_matrix;
+}
+

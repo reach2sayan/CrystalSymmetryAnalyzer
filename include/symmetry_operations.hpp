@@ -3,6 +3,7 @@
 
 #ifndef __EIGEN__
 #include <eigen3/Eigen/Dense>
+#include <eigen3/unsupported/Eigen/CXX11/Tensor>
 #endif
 
 #include <vector>
@@ -47,6 +48,11 @@ class SymmetryOperations {
   bool are_symmetrically_related(
       const vector3d& point_a, const vector3d& point_b,
       double tol = DEFAULT_EQUIVALENCE_TOLERANCE) const;
+
+  template <size_t rank>
+  Eigen::Tensor<double, rank> transform_tensor(
+      const Eigen::Tensor<double, rank>& tensor) const;
+
   std::pair<bool, bool> are_symmetrically_related_vectors(
       const vector3d& from_a, const vector3d& to_a, const vector3d& r_a,
       const vector3d& from_b, const vector3d& to_b, const vector3d& r_b,
