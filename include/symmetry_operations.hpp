@@ -6,6 +6,7 @@
 #include <eigen3/unsupported/Eigen/CXX11/Tensor>
 #endif
 
+#include <variant>
 #include <vector>
 
 #ifndef __SYMMETRY_ANALYZER_CONSTANTS_HPP__
@@ -14,6 +15,8 @@
 
 template <typename T>
 using vector = std::vector<T, Eigen::aligned_allocator<T>>;
+#include <variant>
+using type_k = std::variant<bool, int>;
 
 using matrix4d = Eigen::Matrix<double, 4, 4>;
 using vector4d = Eigen::Matrix<double, 4, 1>;
