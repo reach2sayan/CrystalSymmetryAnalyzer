@@ -43,16 +43,17 @@ SymmetryOperations from_axis_angle_and_translation(
   double sin_a = std::sin(ang);
   vector3d unit_vec = axis / axis.norm();
 
-  matrix3d rot_mat = matrix3d::Zero();
-  rot_mat(0, 0) = cos_a + unit_vec[0] * unit_vec[0] * (1 - cos_a);
-  rot_mat(0, 1) = unit_vec[0] * unit_vec[1] * (1 - cos_a) - unit_vec[2] * sin_a;
-  rot_mat(0, 2) = unit_vec[0] * unit_vec[2] * (1 - cos_a) + unit_vec[1] * sin_a;
-  rot_mat(1, 0) = unit_vec[0] * unit_vec[1] * (1 - cos_a) + unit_vec[2] * sin_a;
-  rot_mat(1, 1) = cos_a + unit_vec[1] * unit_vec[1] * (1 - cos_a);
-  rot_mat(1, 2) = unit_vec[1] * unit_vec[2] * (1 - cos_a) - unit_vec[0] * sin_a;
-  rot_mat(2, 0) = unit_vec[0] * unit_vec[2] * (1 - cos_a) - unit_vec[1] * sin_a;
-  rot_mat(2, 1) = unit_vec[1] * unit_vec[2] * (1 - cos_a) + unit_vec[0] * sin_a;
-  rot_mat(2, 2) = cos_a + unit_vec[2] * unit_vec[2] * (1 - cos_a);
+  matrix3d rot_mat =
+      (matrix3d() << cos_a + unit_vec[0] * unit_vec[0] * (1 - cos_a),
+       unit_vec[0] * unit_vec[1] * (1 - cos_a) - unit_vec[2] * sin_a,
+       unit_vec[0] * unit_vec[2] * (1 - cos_a) + unit_vec[1] * sin_a,
+       unit_vec[0] * unit_vec[1] * (1 - cos_a) + unit_vec[2] * sin_a,
+       cos_a + unit_vec[1] * unit_vec[1] * (1 - cos_a),
+       unit_vec[1] * unit_vec[2] * (1 - cos_a) - unit_vec[0] * sin_a,
+       unit_vec[0] * unit_vec[2] * (1 - cos_a) - unit_vec[1] * sin_a,
+       unit_vec[1] * unit_vec[2] * (1 - cos_a) + unit_vec[0] * sin_a,
+       cos_a + unit_vec[2] * unit_vec[2] * (1 - cos_a))
+	  .finished();
 
   return from_rotation_and_translation(rot_mat, translation_vector);
 }
