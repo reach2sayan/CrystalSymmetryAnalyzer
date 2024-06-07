@@ -1,27 +1,26 @@
 #ifndef __SYMMETRY_ANALYZER_OPERATIONS_HPP__
 #define __SYMMETRY_ANALYZER_OPERATIONS_HPP__
 
+#include <variant>
+#include <vector>
+
 #ifndef __EIGEN__
 #include <eigen3/Eigen/Dense>
 #include <eigen3/unsupported/Eigen/CXX11/Tensor>
+template <typename T>
+using vector = std::vector<T, Eigen::aligned_allocator<T>>;
+using matrix4d = Eigen::Matrix<double, 4, 4>;
+using vector4d = Eigen::Matrix<double, 4, 1>;
+using matrix3d = Eigen::Matrix<double, 3, 3>;
+using vector3d = Eigen::Matrix<double, 3, 1>;
 #endif
-
-#include <variant>
-#include <vector>
 
 #ifndef __SYMMETRY_ANALYZER_CONSTANTS_HPP__
 #include "constants.hpp"
 #endif
 
-template <typename T>
-using vector = std::vector<T, Eigen::aligned_allocator<T>>;
 #include <variant>
 using type_k = std::variant<bool, int>;
-
-using matrix4d = Eigen::Matrix<double, 4, 4>;
-using vector4d = Eigen::Matrix<double, 4, 1>;
-using matrix3d = Eigen::Matrix<double, 3, 3>;
-using vector3d = Eigen::Matrix<double, 3, 1>;
 
 class SymmetryOperations {
  public:
@@ -50,7 +49,7 @@ class SymmetryOperations {
 
   bool are_symmetrically_related(
       const vector3d& point_a, const vector3d& point_b,
-      double tol = DEFAULT_EQUIVALENCE_TOLERANCE) const;
+      double tol = xtal_consts::DEFAULT_EQUIVALENCE_TOLERANCE) const;
 
   template <size_t rank>
   Eigen::Tensor<double, rank> transform_tensor(
@@ -59,18 +58,18 @@ class SymmetryOperations {
   std::pair<bool, bool> are_symmetrically_related_vectors(
       const vector3d& from_a, const vector3d& to_a, const vector3d& r_a,
       const vector3d& from_b, const vector3d& to_b, const vector3d& r_b,
-      double tol = DEFAULT_EQUIVALENCE_TOLERANCE);
+      double tol = xtal_consts::DEFAULT_EQUIVALENCE_TOLERANCE);
 
   const matrix4d& get_matrix() const { return affine_transformation_matrix; }
 
  private:
   matrix4d affine_transformation_matrix;
-  double tolerance = DEFAULT_SYMMETRY_TOLERANCE;
+  double tolerance = xtal_consts::DEFAULT_SYMMETRY_TOLERANCE;
 };
 
 SymmetryOperations from_rotation_and_translation(
     const matrix3d& rotation_matrix, const vector3d& translation_matrix,
-    double tolerance = DEFAULT_SYMMETRY_TOLERANCE);
+    double tolerance = xtal_consts::DEFAULT_SYMMETRY_TOLERANCE);
 
 SymmetryOperations from_axis_angle_and_translation(
     const vector3d axis, double angle, bool angle_in_radians = false,

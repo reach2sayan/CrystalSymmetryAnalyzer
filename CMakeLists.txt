@@ -35,6 +35,10 @@ TARGET_INCLUDE_DIRECTORIES(csvreader INTERFACE
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/csvreader>
 	$<INSTALL_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/lib>)
 
+ADD_LIBRARY(spherical_harmonics STATIC
+	${PROJECT_SOURCE_DIR}/src/spherical_harmonics.cpp)
+TARGET_INCLUDE_DIRECTORIES(spherical_harmonics PRIVATE ${PROJECT_SOURCE_DIR}/include)
+
 ADD_LIBRARY(symmetry_operations SHARED ${PROJECT_SOURCE_DIR}/src/symmetry_operations.cpp)
 TARGET_INCLUDE_DIRECTORIES(symmetry_operations PUBLIC ${PROJECT_SOURCE_DIR}/include)
 TARGET_LINK_LIBRARIES(symmetry_operations PUBLIC ${Eigen_LIBRARIES})

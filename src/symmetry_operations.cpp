@@ -11,7 +11,7 @@
 
 template <typename T>
 constexpr T to_radians(T num) {
-  return num * PI / 180;
+  return num * xtal_consts::PI / 180;
 }
 
 bool SymmetryOperations::operator==(const SymmetryOperations& other) {
@@ -105,7 +105,7 @@ SymmetryOperations from_origin_axis_angle(const vector3d& origin,
 		      (a * ax_v - b * ax_u) * lsqrt * sin_t) /
 		     l2;
 
-  return {affine_mat, DEFAULT_SYMMETRY_TOLERANCE};
+  return {affine_mat, xtal_consts::DEFAULT_SYMMETRY_TOLERANCE};
 }
 
 SymmetryOperations from_rotation_and_translation(
@@ -175,7 +175,9 @@ SymmetryOperations reflection(const vector3d& normal, const vector3d& origin) {
   double xz = -2 * u * w;
   double yz = -2 * v * w;
 
-  matrix4d mirror_mat = matrix4d::Identity();
+  matrix4d mirror_mat =
+      (matrix4d() << xx, xy, xz, 0, xy, yy, yz, 0, xz, yz, zz, 0, 0, 0, 0, 1)
+	  .finished();
   mirror_mat(0, 0) = xx;
   mirror_mat(0, 1) = xy;
   mirror_mat(0, 2) = xz;
@@ -191,7 +193,7 @@ SymmetryOperations reflection(const vector3d& normal, const vector3d& origin) {
   if (origin.norm() > 1e-06)
     mirror_mat = translation.inverse() * mirror_mat * translation;
 
-  return {mirror_mat, DEFAULT_SYMMETRY_TOLERANCE};
+  return {mirror_mat, xtal_consts::DEFAULT_SYMMETRY_TOLERANCE};
 }
 
 SymmetryOperations rotoreflection(const vector3d& axis, double angle,
@@ -199,7 +201,8 @@ SymmetryOperations rotoreflection(const vector3d& axis, double angle,
   SymmetryOperations rot = from_origin_axis_angle(origin, axis, angle);
   SymmetryOperations refl = reflection(axis, origin);
 
-  return {rot.get_matrix() * refl.get_matrix(), DEFAULT_SYMMETRY_TOLERANCE};
+  return {rot.get_matrix() * refl.get_matrix(),
+	  xtal_consts::DEFAULT_SYMMETRY_TOLERANCE};
 }
 
 template <size_t rank>
