@@ -179,17 +179,6 @@ SymmetryOperations reflection(const vector3d& normal, const vector3d& origin) {
   matrix4d mirror_mat =
       (matrix4d() << xx, xy, xz, 0, xy, yy, yz, 0, xz, yz, zz, 0, 0, 0, 0, 1)
 	  .finished();
-  mirror_mat(0, 0) = xx;
-  mirror_mat(0, 1) = xy;
-  mirror_mat(0, 2) = xz;
-
-  mirror_mat(1, 0) = xy;
-  mirror_mat(1, 1) = yy;
-  mirror_mat(1, 2) = yz;
-
-  mirror_mat(2, 0) = xz;
-  mirror_mat(2, 1) = yz;
-  mirror_mat(2, 2) = zz;
 
   if (origin.norm() > 1e-06)
     mirror_mat = translation.inverse() * mirror_mat * translation;
