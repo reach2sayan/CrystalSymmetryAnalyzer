@@ -1,20 +1,8 @@
-#ifndef __EIGEN__
-#include <eigen3/Eigen/Dense>
-#include <eigen3/unsupported/Eigen/CXX11/Tensor>
-#endif
+#include "elasticity.hpp"
 
-#include <unordered_map>
-
-using vector6d = Eigen::Matrix<double, 6, 1>;
-using matrix6d = Eigen::Matrix<double, 6, 6>;
-using matrix3d = Eigen::Matrix<double, 3, 3>;
-
-std::vector<std::pair<int, int>> voigt_notation = {{0, 0}, {1, 1}, {2, 2},
-						   {1, 2}, {0, 2}, {0, 1}};
-
-inline int full_3x3_to_Voight_6_index(int i, int j) {
-  return i == j ? i : 6 - i - j;
-}
+#include <algorithm>
+#include <cassert>
+#include <vector>
 
 matrix3d Voigt_6_to_full_3x3_strain(const vector6d& strain_vector) {
   double e1 = strain_vector.transpose()[0];
@@ -24,78 +12,154 @@ matrix3d Voigt_6_to_full_3x3_strain(const vector6d& strain_vector) {
   double e5 = strain_vector.transpose()[4];
   double e6 = strain_vector.transpose()[5];
 
-  matrix3d retmatrix;
-  retmatrix << 1.0 + e1, 0.5 * e6, 0.5 * e5, 0.5 * e6, 1.0 + e2, 0.5 * e4,
-      0.5 * e5, 0.5 * e4, 1.0 + e3;
-  return retmatrix;
+  return (matrix3d() << 1.0 + e1, 0.5 * e6, 0.5 * e5, 0.5 * e6, 1.0 + e2,
+	  0.5 * e4, 0.5 * e5, 0.5 * e4, 1.0 + e3)
+      .finished();
 }
 
 matrix3d Voigt_6_to_full_3x3_stress(const vector6d& stress_vector) {
-  return stress_vector.transpose().reshaped(3, 3).eval();
+  double s1 = stress_vector.transpose()[0];
+  double s2 = stress_vector.transpose()[1];
+  double s3 = stress_vector.transpose()[2];
+  double s4 = stress_vector.transpose()[3];
+  double s5 = stress_vector.transpose()[4];
+  double s6 = stress_vector.transpose()[5];
+
+  return (matrix3d() << s1, s6, s5, s6, s2, s4, s5, s4, s3)
+      .finished()
+      .transpose();
 }
 
-enum class CijSymmetryTypes : int {
-  CUBIC,
-  TRIGONAL_H,
-  TRIGONAL_L,
-  TETRAGONAL_H,
-  TETRAGONAL_L,
-  ORTHORHOMBIC,
-  MONOCLINIC,
-  TRICLINIC,
-  HEXAGONAL,
-  NONE
-};
+vector6d full_3x3_to_Voigt_6_strain(const matrix3d& strain_matrix) {
+  assert(strain_matrix.transpose() == strain_matrix);
+  return (vector6d() << strain_matrix(0, 0) - 1.0, strain_matrix(1, 1) - 1.0,
+	  strain_matrix(2, 2) - 1.0, strain_matrix(1, 2) + strain_matrix(2, 1),
+	  strain_matrix(0, 2) + strain_matrix(2, 0),
+	  strain_matrix(0, 1) + strain_matrix(1, 0))
+      .finished();
+}
 
-const matrix6d Cij_symmetry_cubic =
-    (matrix6d() << 1, 7, 7, 0, 0, 0, 7, 1, 7, 0, 0, 0, 7, 7, 1, 0, 0, 0, 0, 0,
-     0, 4, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 4)
-	.finished();
+vector6d full_3x3_to_Voigt_6_stress(const matrix3d& stress_matrix) {
+  assert(stress_matrix.transpose() == stress_matrix);
+  return (vector6d() << stress_matrix(0, 0), stress_matrix(1, 1),
+	  stress_matrix(2, 2),
+	  (stress_matrix(1, 2) + stress_matrix(2, 1)) / 2.0,
+	  (stress_matrix(0, 2) + stress_matrix(2, 0)) / 2.0,
+	  (stress_matrix(0, 1) + stress_matrix(1, 0)) / 2.0)
+      .finished();
+}
 
-const matrix6d Cij_symmetry_trigonal_high =
-    (matrix6d() << 1, 7, 8, 9, 10, 0, 7, 1, 8, 0, -9, 0, 8, 8, 3, 0, 0, 0, 9,
-     -9, 0, 4, 0, 0, 10, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 6)
-	.finished();
+matrix6d full_3x3x3x3_to_Voigt_6x6(const tensor4r& C) {
+  double tol = 1e-3;
+  matrix6d voigt = matrix6d::Zero();
 
-const matrix6d Cij_symmetry_trigonal_low =
-    (matrix6d() << 1, 7, 8, 9, 10, 0, 7, 1, 8, -9, -10, 0, 8, 8, 3, 0, 0, 0, 9,
-     -9, 0, 4, 0, -10, 10, -10, 0, 0, 4, 9, 0, 0, 0, -10, 9, 6)
-	.finished();
+  for (int i = 0; i < 6; ++i) {
+    for (int j = 0; j < 6; ++j) {
+      auto [k, l] = voigt_notation[i];
+      auto [m, n] = voigt_notation[j];
+      voigt(i, j) = C(k, l, m, n);
 
-const matrix6d Cij_symmetry_triclinic =
-    (matrix6d() << 1, 7, 8, 9, 10, 11, 7, 2, 12, 13, 14, 15, 8, 12, 3, 16, 17,
-     18, 9, 13, 16, 4, 19, 20, 10, 14, 17, 19, 5, 21, 11, 15, 18, 20, 21, 6)
-	.finished();
+      assert(fabs(voigt(i, j) - C(m, n, k, l)) < tol);
+      assert(fabs(voigt(i, j) - C(l, k, m, n)) < tol);
+      assert(fabs(voigt(i, j) - C(k, l, n, m)) < tol);
+      assert(fabs(voigt(i, j) - C(m, n, l, k)) < tol);
+      assert(fabs(voigt(i, j) - C(n, m, k, l)) < tol);
+      assert(fabs(voigt(i, j) - C(l, k, n, m)) < tol);
+      assert(fabs(voigt(i, j) - C(n, m, l, k)) < tol);
+    }
+  }
+  return voigt;
+}
 
-const matrix6d Cij_symmetry_tetragonal_high =
-    (matrix6d() << 1, 7, 8, 0, 0, 0, 7, 1, 8, 0, 0, 0, 8, 8, 3, 0, 0, 0, 0, 0,
-     0, 4, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 6)
-	.finished();
+vector3d Voigt_6x6_to_cubic(const matrix6d& C) {
+  double tol = 1e-6;
+  vector3d C11s = (vector3d() << C(0, 0), C(1, 1), C(2, 2)).finished();
+  vector3d C12s = (vector3d() << C(1, 2), C(0, 2), C(0, 1)).finished();
+  vector3d C44s = (vector3d() << C(3, 3), C(4, 4), C(5, 5)).finished();
 
-const matrix6d Cij_symmetry_tetragonal_low =
-    (matrix6d() << 1, 7, 8, 0, 0, 11, 7, 1, 8, 0, 0, -11, 8, 8, 3, 0, 0, 0, 0,
-     0, 0, 4, 0, 0, 0, 0, 0, 0, 4, 0, 11, -11, 0, 0, 0, 6)
-	.finished();
+  matrix6d C_check = matrix6d::Zero();
+  C_check.diagonal() = C.diagonal();
+  C_check(Eigen::seq(0, 3), Eigen::seq(0, 3)) =
+      C(Eigen::seq(0, 3), Eigen::seq(0, 3));
 
-const matrix6d Cij_symmetry_orthorhombic =
-    (matrix6d() << 1, 7, 8, 0, 0, 0, 7, 2, 12, 0, 0, 0, 8, 12, 3, 0, 0, 0, 0, 0,
-     0, 4, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 6)
-	.finished();
+  matrix6d diff = C - C_check;
+  assert(std::none_of(diff.reshaped().begin(), diff.reshaped().end(),
+		      [tol](auto diff) { return fabs(diff) > tol; }));
 
-const matrix6d Cij_symmetry_monoclinic =
-    (matrix6d() << 1, 7, 8, 0, 10, 0, 7, 2, 12, 0, 14, 0, 8, 12, 3, 0, 17, 0, 0,
-     0, 0, 4, 0, 20, 10, 14, 17, 0, 5, 0, 0, 0, 0, 20, 0, 6)
-	.finished();
+  double C11 = C11s.mean();
+  double C12 = C12s.mean();
+  double C44 = C44s.mean();
 
-const std::unordered_map<CijSymmetryTypes, matrix6d> Cij_symmetry = {
-    {CijSymmetryTypes::CUBIC, std::move(Cij_symmetry_cubic)},
-    {CijSymmetryTypes::TRIGONAL_L, std::move(Cij_symmetry_trigonal_low)},
-    {CijSymmetryTypes::TRIGONAL_H, std::move(Cij_symmetry_trigonal_high)},
-    {CijSymmetryTypes::TETRAGONAL_H, std::move(Cij_symmetry_tetragonal_high)},
-    {CijSymmetryTypes::TETRAGONAL_L, std::move(Cij_symmetry_tetragonal_low)},
-    {CijSymmetryTypes::ORTHORHOMBIC, std::move(Cij_symmetry_orthorhombic)},
-    {CijSymmetryTypes::MONOCLINIC, std::move(Cij_symmetry_monoclinic)},
-    {CijSymmetryTypes::HEXAGONAL, std::move(Cij_symmetry_trigonal_high)},
-    {CijSymmetryTypes::MONOCLINIC, std::move(Cij_symmetry_monoclinic)},
-    {CijSymmetryTypes::TRICLINIC, std::move(Cij_symmetry_triclinic)}};
+  assert(std::none_of(C11s.begin(), C11s.end(), [C11, tol](double val) {
+    return fabs(val - C11) > tol;
+  }));
+  assert(std::none_of(C12s.begin(), C12s.end(), [C12, tol](double val) {
+    return fabs(val - C12) > tol;
+  }));
+  assert(std::none_of(C44s.begin(), C44s.end(), [C44, tol](double val) {
+    return fabs(val - C44) > tol;
+  }));
 
+  return (vector3d() << C11, C12, C44).finished();
+}
+
+matrix6d cubic_to_Voigt_6x6(double C11, double C12, double C44) {
+  return (matrix6d() << C11, C12, C12, 0, 0, 0, C12, C11, C12, 0, 0, 0, C12,
+	  C12, C11, 0, 0, 0, 0, 0, 0, C44, 0, 0, 0, 0, 0, 0, C44, 0, 0, 0, 0, 0,
+	  0, C44)
+      .finished();
+}
+
+std::tuple<double, double, double> __invariants_impl(const vector6d& voigt) {
+  double I1 = voigt[0] + voigt[1] + voigt[2];
+  double I2 = voigt[0] * voigt[1] + voigt[1] * voigt[2] + voigt[2] * voigt[0] -
+	      voigt[3] * voigt[3] - voigt[4] * voigt[4] - voigt[5] * voigt[5];
+  double I3 = voigt[0] * voigt[1] * voigt[2] +
+	      2 * voigt[3] * voigt[4] * voigt[5] -
+	      voigt[3] * voigt[3] * voigt[2] - voigt[4] * voigt[4] * voigt[0] -
+	      voigt[5] * voigt[5] * voigt[1];
+  return {I1, I2, I3};
+}
+
+std::tuple<double, double, double> __invariants_impl(double sxx, double syy,
+						     double szz, double syz,
+						     double sxz, double sxy) {
+  const vector6d voigt =
+      (vector6d() << sxx, syy, szz, syz, sxz, sxy).finished();
+
+  return __invariants_impl(voigt);
+}
+
+std::tuple<double, double, double> __invariants_impl(const matrix3d& matrix,
+						     full_3x3_to_Voigt_6 func) {
+  vector6d voigt = func(matrix);
+  return __invariants_impl(voigt);
+}
+
+template <typename... Args>
+constexpr std::tuple<double, double, double> invariants(Args... args) {
+  auto [I1, I2, I3] = __invariants_impl(std::forward<Args>(args)...);
+
+  double J1 = -I1 / 3;
+  double J2 = I1 * I1 / 3 - I2;
+  double J3 = 2 * I1 * I1 * I1 / 27 - I1 * I2 / 3 + I3;
+
+  return {-J1, sqrt(2 * J2 / 3), J3};
+}
+
+// TODO : Incomplete
+matrix6d rotate_cubic_elastic_constants(double C11, double C12, double C44,
+					matrix3d A, double tol = 1e-6) {
+  vector<double> C;
+  for (const auto [i, j] : voigt_notation) {
+    for (const auto [k, l] : voigt_notation) {
+      double h = 0;
+      if (i == j && k == l) h += C12;  // la
+      if (i == k && j == l) h += C44;  // mu
+      if (i == l && j == k) h += C44;
+      h += (C11 - C12 - 2 * C44);  //*np.sum(A[i,:]*A[j,:]*A[k,:]*A[l,:])
+      C.push_back(h);
+    }
+  }
+  return Eigen::Map<matrix6d>(C.data());
+}

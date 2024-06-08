@@ -81,30 +81,33 @@ SymmetryOperations from_origin_axis_angle(const vector3d& origin,
   double l2 = u2 + v2 + w2;
   double lsqrt = std::sqrt(l2);
 
-  matrix4d affine_mat = matrix4d::Identity();
-  affine_mat(0, 0) = (u2 + (v2 + w2) * cos_t) / l2;
-  affine_mat(0, 1) = (ax_u * ax_v * (1 - cos_t) - ax_w * lsqrt * sin_t) / l2;
-  affine_mat(0, 2) = (ax_u * ax_w * (1 - cos_t) + ax_v * lsqrt * sin_t) / l2;
-  affine_mat(0, 3) = (a * (v2 + w2) - ax_u * (b * ax_v + c * ax_w) +
-		      (ax_u * (b * ax_v + c * ax_w) - a * (v2 + w2)) * cos_t +
-		      (b * ax_w - c * ax_v) * lsqrt * sin_t) /
-		     l2;
+  matrix4d affine_mat =
+      (matrix4d() << (u2 + (v2 + w2) * cos_t) / l2,
+       (ax_u * ax_v * (1 - cos_t) - ax_w * lsqrt * sin_t) / l2,
+       (ax_u * ax_w * (1 - cos_t) + ax_v * lsqrt * sin_t) / l2,
+       (a * (v2 + w2) - ax_u * (b * ax_v + c * ax_w) +
+	(ax_u * (b * ax_v + c * ax_w) - a * (v2 + w2)) * cos_t +
+	(b * ax_w - c * ax_v) * lsqrt * sin_t) /
+	   l2,
 
-  affine_mat(1, 0) = (ax_u * ax_v * (1 - cos_t) + ax_w * lsqrt * sin_t) / l2;
-  affine_mat(1, 1) = (v2 + (u2 + w2) * cos_t) / l2;
-  affine_mat(1, 2) = (ax_v * ax_w * (1 - cos_t) - ax_u * lsqrt * sin_t) / l2;
-  affine_mat(1, 3) = (b * (u2 + w2) - ax_v * (a * ax_u + c * ax_w) +
-		      (ax_v * (a * ax_u + c * ax_w) - b * (u2 + w2)) * cos_t +
-		      (c * ax_u - a * ax_w) * lsqrt * sin_t) /
-		     l2;
+       (ax_u * ax_v * (1 - cos_t) + ax_w * lsqrt * sin_t) / l2,
+       (v2 + (u2 + w2) * cos_t) / l2,
+       (ax_v * ax_w * (1 - cos_t) - ax_u * lsqrt * sin_t) / l2,
+       (b * (u2 + w2) - ax_v * (a * ax_u + c * ax_w) +
+	(ax_v * (a * ax_u + c * ax_w) - b * (u2 + w2)) * cos_t +
+	(c * ax_u - a * ax_w) * lsqrt * sin_t) /
+	   l2,
 
-  affine_mat(2, 0) = (ax_u * ax_w * (1 - cos_t) - ax_v * lsqrt * sin_t) / l2;
-  affine_mat(2, 1) = (ax_v * ax_w * (1 - cos_t) + ax_u * lsqrt * sin_t) / l2;
-  affine_mat(2, 2) = (w2 + (u2 + v2) * cos_t) / l2;
-  affine_mat(2, 3) = (c * (u2 + v2) - ax_w * (a * ax_u + b * ax_v) +
-		      (ax_w * (a * ax_u + b * ax_v) - c * (u2 + v2)) * cos_t +
-		      (a * ax_v - b * ax_u) * lsqrt * sin_t) /
-		     l2;
+       (ax_u * ax_w * (1 - cos_t) - ax_v * lsqrt * sin_t) / l2,
+       (ax_v * ax_w * (1 - cos_t) + ax_u * lsqrt * sin_t) / l2,
+       (w2 + (u2 + v2) * cos_t) / l2,
+       (c * (u2 + v2) - ax_w * (a * ax_u + b * ax_v) +
+	(ax_w * (a * ax_u + b * ax_v) - c * (u2 + v2)) * cos_t +
+	(a * ax_v - b * ax_u) * lsqrt * sin_t) /
+	   l2,
+
+       0, 0, 0, 1)
+	  .finished();
 
   return {affine_mat, xtal_consts::DEFAULT_SYMMETRY_TOLERANCE};
 }
