@@ -2,10 +2,9 @@
 #define __SYMMETRY_ANALYZER_ELASTICITY_HPP__
 
 #ifndef __EIGEN__
+#include <array>
 #include <eigen3/Eigen/Dense>
 #include <eigen3/unsupported/Eigen/CXX11/Tensor>
-template <typename T>
-using vector = std::vector<T, Eigen::aligned_allocator<T>>;
 using vector6d = Eigen::Matrix<double, 6, 1>;
 using vector3d = Eigen::Matrix<double, 3, 1>;
 using matrix6d = Eigen::Matrix<double, 6, 6>;

@@ -149,17 +149,17 @@ constexpr std::tuple<double, double, double> invariants(Args... args) {
 
 matrix6d rotate_cubic_elastic_constants(double C11, double C12, double C44,
 					const matrix3d& A, double tol) {
-  vector<double> C;
+  std::array<double, 6 * 6> C;
   for (const auto [i, j] : voigt_notation) {
     for (const auto [k, l] : voigt_notation) {
       double h = 0;
       if (i == j && k == l) h += C12;  // la
       if (i == k && j == l) h += C44;  // mu
       if (i == l && j == k) h += C44;
-      const Eigen::Array<double, 6, 1>& ith_row = A.row(i);
-      const Eigen::Array<double, 6, 1>& jth_row = A.row(j);
-      const Eigen::Array<double, 6, 1>& kth_row = A.row(k);
-      const Eigen::Array<double, 6, 1>& lth_row = A.row(l);
+      const Eigen::Array<double, 3, 1>& ith_row = A.row(i);
+      const Eigen::Array<double, 3, 1>& jth_row = A.row(j);
+      const Eigen::Array<double, 3, 1>& kth_row = A.row(k);
+      const Eigen::Array<double, 3, 1>& lth_row = A.row(l);
 
       h +=
 	  (C11 - C12 - 2 * C44) * (ith_row * jth_row * kth_row * lth_row).sum();

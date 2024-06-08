@@ -17,7 +17,7 @@ using matrix3d = Eigen::Matrix<double, 3, 3>;
 using vector3d = Eigen::Matrix<double, 3, 1>;
 #endif
 
-constexpr double factorial(int val) {
+constexpr unsigned long long factorial(int val) {
   if (val <= 16) {
     return FACTORIAL_CACHE[val];
   } else {
