@@ -147,9 +147,8 @@ constexpr std::tuple<double, double, double> invariants(Args... args) {
   return {-J1, sqrt(2 * J2 / 3), J3};
 }
 
-// TODO : Incomplete
 matrix6d rotate_cubic_elastic_constants(double C11, double C12, double C44,
-					matrix3d A, double tol = 1e-6) {
+					const matrix3d& A, double tol) {
   vector<double> C;
   for (const auto [i, j] : voigt_notation) {
     for (const auto [k, l] : voigt_notation) {
@@ -157,7 +156,13 @@ matrix6d rotate_cubic_elastic_constants(double C11, double C12, double C44,
       if (i == j && k == l) h += C12;  // la
       if (i == k && j == l) h += C44;  // mu
       if (i == l && j == k) h += C44;
-      h += (C11 - C12 - 2 * C44);  //*np.sum(A[i,:]*A[j,:]*A[k,:]*A[l,:])
+      const Eigen::Array<double, 6, 1>& ith_row = A.row(i);
+      const Eigen::Array<double, 6, 1>& jth_row = A.row(j);
+      const Eigen::Array<double, 6, 1>& kth_row = A.row(k);
+      const Eigen::Array<double, 6, 1>& lth_row = A.row(l);
+
+      h +=
+	  (C11 - C12 - 2 * C44) * (ith_row * jth_row * kth_row * lth_row).sum();
       C.push_back(h);
     }
   }

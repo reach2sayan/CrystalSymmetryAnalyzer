@@ -12,12 +12,14 @@ using matrix6d = Eigen::Matrix<double, 6, 6>;
 using matrix3d = Eigen::Matrix<double, 3, 3>;
 using tensor4r = Eigen::TensorFixedSize<double, Eigen::Sizes<3, 3, 3, 3>>;
 #endif
+#include <set>
 #include <unordered_map>
 
-const std::vector<std::pair<int, int>> voigt_notation = {
-    {0, 0}, {1, 1}, {2, 2}, {1, 2}, {0, 2}, {0, 1}};
+const std::set<std::pair<int, int>> voigt_notation = {{0, 0}, {1, 1}, {2, 2},
+						      {1, 2}, {0, 2}, {0, 1}};
 
 inline int full_3x3_to_Voight_6_index(int i, int j) {
+  assert(i < 3 && j < 3);
   return i == j ? i : 6 - i - j;
 }
 
@@ -28,13 +30,7 @@ vector6d full_3x3_to_Voigt_6_stress(const matrix3d& stress_matrix);
 matrix6d full_3x3x3x3_to_Voigt_6x6(const tensor4r& C);
 vector3d Voigt_6x6_to_cubic(const matrix6d& C);
 
-std::tuple<double, double, double> invariants_impl(const vector6d& voigt);
-std::tuple<double, double, double> invariants_impl(double sxx, double syy,
-						   double szz, double syz,
-						   double sxz, double sxy);
-
 using full_3x3_to_Voigt_6 = vector6d (*)(const matrix3d&);
-
 std::tuple<double, double, double> __invariants_impl(const vector6d& voigt);
 std::tuple<double, double, double> __invariants_impl(double sxx, double syy,
 						     double szz, double syz,
@@ -44,6 +40,9 @@ std::tuple<double, double, double> __invariants_impl(const matrix3d& matrix,
 
 template <typename... Args>
 constexpr std::tuple<double, double, double> invariants(Args... args);
+
+matrix6d rotate_cubic_elastic_constants(double C11, double C12, double C44,
+					const matrix3d& A, double tol = 1e-6);
 
 enum class CijSymmetryTypes : int {
   CUBIC,
