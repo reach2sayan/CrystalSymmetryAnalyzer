@@ -1,11 +1,11 @@
 #include "operations.hpp"
 
-std::vector<vector3d> create_matrix(const PBC& pbc, const bool omit) {
+vector<vector3d> create_matrix(const PBC& pbc, const bool omit) {
   std::vector<int> i_list;
   std::vector<int> j_list;
   std::vector<int> k_list;
 
-  std::vector<vector3d> retvector;
+  vector<vector3d> retvector;
 
   if (pbc[0])
     i_list.emplace_back(-1, 0, 1);
@@ -37,9 +37,9 @@ std::vector<vector3d> create_matrix(const PBC& pbc, const bool omit) {
   return retvector;
 }
 
-std::vector<vector3d> filtered_coords(const std::vector<vector3d>& coords,
-				      const PBC& pbc) {
-  std::vector<vector3d> retvector = coords;
+vector<vector3d> filtered_coords(const vector<vector3d>& coords,
+				 const PBC& pbc) {
+  vector<vector3d> retvector = coords;
   for (size_t i = 0; i < coords.size(); i++)
     retvector[i] -= coords[i] * static_cast<int>(pbc[i]);
   return retvector;

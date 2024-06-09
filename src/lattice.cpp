@@ -1,5 +1,11 @@
 #include "lattice.hpp"
 
+#include "operations.hpp"
+
+#if !defined(__SYMMETRY_ANALYZER_OPERATIONS_HPP__)
+#include "symmetry_operations.hpp"
+#endif
+
 Lattice::Lattice(const LType _ltype, const double _volume,
 		 const matrix3d& _matrix, const PBC& _pbc, bool _random,
 		 bool _allow_volume_reset, const LUniqAx _uax)
@@ -17,7 +23,7 @@ Lattice::Lattice(const LType _ltype, const double _volume,
       norm_matrix << 1, 0, 0, 0, 1, 0, 0, 0, 1;
       break;
     case LType::monoclinic:
-      if (_pbc == std::array<int, 3>{1, 1, 1}) {
+      if (_pbc[0] == 1 && _pbc[1] == 1 && _pbc[2] == 1) {
 	norm_matrix << 1, 0, 0, 0, 1, 0, 1, 0, 1;
       } else {
 	switch (_uax) {
@@ -63,7 +69,7 @@ Lattice::Lattice(const LType _ltype, const double _volume,
       stress_indices.emplace_back(std::pair<int, int>(2, 2));
       break;
     default:
-      stress_indices;
+      stress_indices = {};
       break;
   }
 
@@ -92,3 +98,18 @@ int Lattice::get_dofs() const {
   }
 }
 
+std::pair<vector<vector3d>, std::vector<double>> Lattice::get_lengths() const {
+  vector<vector3d> mat = create_matrix(pbc);
+  vector<vector3d> retvector;
+  std::vector<double> retnorm;
+
+  retvector.reserve(mat.size());
+  retnorm.reserve(mat.size());
+
+  for (const vector3d& v : mat) {
+    retvector.emplace_back(matrix * v);
+    retnorm.push_back((matrix * v).norm());
+  }
+
+  return {retvector, retnorm};
+}

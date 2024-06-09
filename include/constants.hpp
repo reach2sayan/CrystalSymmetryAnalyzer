@@ -20,6 +20,8 @@ constexpr double SQRT_15_PI = 2.18509686118;
 constexpr double SQRT_5_PI = 1.26156626101;
 constexpr double DEG = 180 / PI;
 constexpr short VERBOSITY = 1;
+constexpr double FEMPTY = -32767.0;
+constexpr short NUMBER_OF_SPACE_GROUPS = 230;
 
 Eigen::Matrix3d HEXAGONAL_CELL((Eigen::Matrix3d() << 1, -0.5, 0, 0,
 				std::sqrt(3) / 2, 0, 0, 0, 1)

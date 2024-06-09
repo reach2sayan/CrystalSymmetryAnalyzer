@@ -35,3 +35,6 @@
 build/
 *.json
 .cache
+
+#include jupyter notebooks
+notebooks/

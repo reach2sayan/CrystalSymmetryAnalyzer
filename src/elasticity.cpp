@@ -4,6 +4,8 @@
 #include <cassert>
 #include <vector>
 
+namespace ElasticityUtils {
+
 matrix3d Voigt_6_to_full_3x3_strain(const vector6d& strain_vector) {
   double e1 = strain_vector.transpose()[0];
   double e2 = strain_vector.transpose()[1];
@@ -36,6 +38,37 @@ vector6d full_3x3_to_Voigt_6_strain(const matrix3d& strain_matrix) {
 	  strain_matrix(2, 2) - 1.0, strain_matrix(1, 2) + strain_matrix(2, 1),
 	  strain_matrix(0, 2) + strain_matrix(2, 0),
 	  strain_matrix(0, 1) + strain_matrix(1, 0))
+      .finished();
+}
+
+bool is_rotation_matrix(const matrix3d& rotation) {
+  const matrix3d& diff_matrix =
+      rotation * rotation.transpose() - matrix3d::Identity();
+  return std::all_of(diff_matrix.reshaped().begin(),
+		     diff_matrix.reshaped().end(),
+		     [](double val) -> bool { return fabs(val) < 1e-3; });
+}
+
+matrix6d full_3x3_to_6x6_rotation(const matrix3d& rotation) {
+  assert(is_rotation_matrix(rotation));
+  double l1 = rotation(0, 0);
+  double l2 = rotation(1, 0);
+  double l3 = rotation(2, 0);
+  double m1 = rotation(0, 1);
+  double m2 = rotation(1, 1);
+  double m3 = rotation(2, 1);
+  double n1 = rotation(0, 2);
+  double n2 = rotation(1, 2);
+  double n3 = rotation(2, 2);
+
+  return (matrix6d() << l1 * l1, m1 * m1, n1 * n1, 2 * m1 * n1, 2 * n1 * l1,
+	  2 * l1 * m1, l2 * l2, m2 * m2, n2 * n2, 2 * m2 * n2, 2 * n2 * l2,
+	  2 * l2 * m2, l3 * l3, m3 * m3, n3 * n3, 2 * m3 * n3, 2 * n3 * l3,
+	  2 * l3 * m3, l2 * l3, m2 * m3, n2 * n3, m2 * n3 + m3 * n2,
+	  n2 * l3 + n3 * l2, m2 * l3 + m3 * l2, l3 * l1, m3 * m1, n3 * n1,
+	  m3 * n1 + m1 * n3, n3 * l1 + n1 * l3, m3 * l1 + m1 * l3, l1 * l2,
+	  m1 * m2, n1 * n2, m1 * n2 + m2 * n1, n1 * l2 + n2 * l1,
+	  m1 * l2 + m2 * l1)
       .finished();
 }
 
@@ -138,7 +171,7 @@ std::tuple<double, double, double> __invariants_impl(const matrix3d& matrix,
 
 template <typename... Args>
 constexpr std::tuple<double, double, double> invariants(Args... args) {
-  auto [I1, I2, I3] = __invariants_impl(std::forward<Args>(args)...);
+  const auto [I1, I2, I3] = __invariants_impl(std::forward<Args>(args)...);
 
   double J1 = -I1 / 3;
   double J2 = I1 * I1 / 3 - I2;
@@ -149,9 +182,10 @@ constexpr std::tuple<double, double, double> invariants(Args... args) {
 
 matrix6d rotate_cubic_elastic_constants(double C11, double C12, double C44,
 					const matrix3d& A, double tol) {
-  std::array<double, 6 * 6> C;
-  for (const auto [i, j] : voigt_notation) {
-    for (const auto [k, l] : voigt_notation) {
+  std::vector<double> C;
+  C.reserve(6 * 6);
+  for (const auto& [i, j] : voigt_notation) {
+    for (const auto& [k, l] : voigt_notation) {
       double h = 0;
       if (i == j && k == l) h += C12;  // la
       if (i == k && j == l) h += C44;  // mu
@@ -168,3 +202,66 @@ matrix6d rotate_cubic_elastic_constants(double C11, double C12, double C44,
   }
   return Eigen::Map<matrix6d>(C.data());
 }
+
+matrix6d rotate_elastic_constants(const matrix6d& C, const matrix3d A,
+				  double tol) {
+  const matrix6d sigma = full_3x3_to_6x6_rotation(A);
+  return sigma.transpose() * C * sigma;
+}
+}  // namespace ElasticityUtils
+
+namespace e_utils = ElasticityUtils;
+
+CubicElasticModuli::CubicElasticModuli(double C11, double C12, double C44) {
+  la = C12;
+  mu = C44;
+  al = C11 - C12 - 2 * C44;
+  A = matrix3d::Identity();
+  C = rotate(A);
+}
+
+matrix6d CubicElasticModuli::rotate(const matrix3d& A) {
+  assert(e_utils::is_rotation_matrix(A));
+  std::vector<double> C;
+  C.reserve(6 * 6);
+  for (auto [i, j] : e_utils::voigt_notation) {
+    for (auto [k, l] : e_utils::voigt_notation) {
+      double h = 0;
+      if (i == j && k == l) h += la;
+      if (i == k && j == l) h += mu;
+      if (i == l && j == k) h += mu;
+
+      const Eigen::Array<double, 3, 1>& ith_row = A.row(i);
+      const Eigen::Array<double, 3, 1>& jth_row = A.row(j);
+      const Eigen::Array<double, 3, 1>& kth_row = A.row(k);
+      const Eigen::Array<double, 3, 1>& lth_row = A.row(l);
+
+      h += al * (ith_row * jth_row * kth_row * lth_row).sum();
+      C.push_back(h);
+    }
+  }
+  return Eigen::Map<matrix6d>(C.data());
+}
+
+matrix6d CubicElasticModuli::_rotate_explicit(const matrix3d& A) {
+  assert(e_utils::is_rotation_matrix(A));
+
+  tensor4r C = (tensor4r().setZero());
+  for (int i = 0; i < 3; ++i) {
+    for (int j = 0; j < 3; ++j) {
+      for (int k = 0; k < 3; ++k) {
+	for (int m = 0; m < 3; ++m) {
+	  double h = 0.0;
+	  if (i == j && k == m) h += la;
+	  if (i == k && j == m) h += mu;
+	  if (i == m && j == k) h += mu;
+	  if (i == j && j == k && k == m) h += al;
+	  C(i, j, k, m) = h;
+	}
+      }
+    }
+  }
+  return e_utils::rotate_elastic_constants(
+      e_utils::full_3x3x3x3_to_Voigt_6x6(C), A);
+}
+

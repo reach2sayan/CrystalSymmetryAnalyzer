@@ -14,10 +14,17 @@
 #else
 #ifndef __EIGEN__
 #include <eigen3/Eigen/Dense>
+template <typename T>
+using vector = std::vector<T, Eigen::aligned_allocator<T>>;
+using PBC = Eigen::Array<bool, 3, 1>;
+using vector3d = Eigen::Matrix<double, 3, 1>;
+using matrix3d = Eigen::Matrix<double, 3, 3>;
 #endif
 #endif
 
-constexpr double FEMPTY = -32767.0;
+#ifndef __SYMMETRY_ANALYZER_CONSTANTS_HPP__
+#include "constants.hpp"
+#endif
 
 enum class LatticeUniqueAxis : int { a = 0, b = 1, c = 2 };
 typedef LatticeUniqueAxis LUniqAx;
@@ -47,11 +54,6 @@ enum class PeriodicBoundaryCondition : int {
 };
 */
 
-typedef std::array<int, 3> PBC;
-
-using vector3d = Eigen::Matrix<double, 3, 1>;
-using matrix3d = Eigen::Matrix<double, 3, 3>;
-
 struct LatticeParams {
   double area = 0;
   bool random = true;
@@ -64,10 +66,10 @@ struct LatticeParams {
 
 class Lattice {
  public:
-  Lattice(const LType _ltype, const double _volume = FEMPTY,
-	  const matrix3d& _matrix = {}, const PBC& _pbc = {1, 1, 1},
-	  bool _random = true, bool _allow_volume_reset = false,
-	  const LUniqAx _uax = LUniqAx::c);
+  Lattice(const LType _ltype, const double _volume = xtal_consts::FEMPTY,
+	  const matrix3d& _matrix = {},
+	  const PBC& _pbc = (PBC() << 1, 1, 1).finished(), bool _random = true,
+	  bool _allow_volume_reset = false, const LUniqAx _uax = LUniqAx::c);
 
   Lattice(const Lattice& other) = default;
   Lattice(Lattice&& other) = default;
@@ -76,10 +78,10 @@ class Lattice {
     return std::accumulate(std::begin(pbc), std::end(pbc), 0);
   }
   int get_dofs() const;
-  double get_lengths() const;
+  std::pair<vector<vector3d>, std::vector<double>> get_lengths() const;
 
  private:
-  PBC pbc{1, 1, 1};
+  PBC pbc = (PBC() << 1, 1, 1).finished();
   LType ltype = LType::cubic;
   bool random = true;
   bool allow_volume_reset = false;

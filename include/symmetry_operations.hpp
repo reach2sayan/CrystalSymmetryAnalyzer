@@ -9,6 +9,7 @@
 #include <eigen3/unsupported/Eigen/CXX11/Tensor>
 template <typename T>
 using vector = std::vector<T, Eigen::aligned_allocator<T>>;
+using PBC = Eigen::Array<bool, 3, 1>;
 using matrix4d = Eigen::Matrix<double, 4, 4>;
 using vector4d = Eigen::Matrix<double, 4, 1>;
 using matrix3d = Eigen::Matrix<double, 3, 3>;
@@ -18,9 +19,6 @@ using vector3d = Eigen::Matrix<double, 3, 1>;
 #ifndef __SYMMETRY_ANALYZER_CONSTANTS_HPP__
 #include "constants.hpp"
 #endif
-
-#include <variant>
-using type_k = std::variant<bool, int>;
 
 class SymmetryOperations {
  public:
