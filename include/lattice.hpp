@@ -26,8 +26,14 @@ using matrix3d = Eigen::Matrix<double, 3, 3>;
 #include "constants.hpp"
 #endif
 
+#include <random>
+std::random_device rand_device{};
+std::mt19937 rand_generator{rand_device()};
+
 enum class LatticeUniqueAxis : int { a = 0, b = 1, c = 2 };
 typedef LatticeUniqueAxis LUniqAx;
+
+using CellParams = std::tuple<double, double, double, double, double, double>;
 
 enum class LatticeType : int {
   triclinic = 0,
@@ -41,18 +47,6 @@ enum class LatticeType : int {
   ellipsoidal = 200
 };
 typedef LatticeType LType;
-
-/*
-enum class PeriodicBoundaryCondition : int {
-  xyz = 111,
-  xy = 110,
-  yz = 11,
-  xz = 110,
-  x = 1,
-  y = 2,
-  z = 3
-};
-*/
 
 struct LatticeParams {
   double area = 0;
@@ -79,22 +73,44 @@ class Lattice {
   }
   int get_dofs() const;
   std::pair<vector<vector3d>, std::vector<double>> get_lengths() const;
+  vector<matrix3d> get_permutation_matrices() const;
+  vector<matrix3d> get_transformation_matrices() const;
+  double get_worst_angle() const;
+
+  const matrix3d& get_matrix() const { return matrix; }
+  CellParams get_parameters(bool degree = false) const;
 
  private:
   PBC pbc = (PBC() << 1, 1, 1).finished();
   LType ltype = LType::cubic;
+  double a = 1.0;
+  double b = 1.0;
+  double c = 1.0;
+  double alpha = 90.;
+  double gamma = 90.;
+  double beta = 90.;
   bool random = true;
   bool allow_volume_reset = false;
-  int dim;
+  int dim = 3;
   LUniqAx unique_axis = LUniqAx::c;
   matrix3d norm_matrix;
   matrix3d stress_normalization_matrix;
   matrix3d matrix;
   std::vector<std::pair<int, int>> stress_indices;
 
-  double a_tol;
-  double volume = 0;
-  int dof;
+  double a_tol = xtal_consts::DEFAULT_EQUIVALENCE_TOLERANCE;
+  double volume = 1.0;
+  int dof = 3;
 };
 
+CellParams generate_cell_parameters(const LatticeType ltype, const double vol,
+				    const double minvec = 1.2,
+				    const double minangle = xtal_consts::PI / 6,
+				    const double max_ratio = 10.0,
+				    const int max_attempts = 100);
+
+matrix3d random_shear_matrix(double width = 1.0, bool unitary = false);
+vector3d random_vector(const vector3d& minvector = {0.0, 0.0, 0.0},
+		       const vector3d& maxvector = {1.0, 1.0, 1.0},
+		       double width = 0.35, bool unit = false);
 #endif
