@@ -1,5 +1,7 @@
 #include "operations.hpp"
 
+#include "constants.hpp"
+
 vector<vector3d> create_matrix(const PBC& pbc, const bool omit) {
   std::vector<int> i_list;
   std::vector<int> j_list;
@@ -43,4 +45,16 @@ vector<vector3d> filtered_coords(const vector<vector3d>& coords,
   for (size_t i = 0; i < coords.size(); i++)
     retvector[i] -= coords[i] * static_cast<int>(pbc[i]);
   return retvector;
+}
+
+double angle(const vector3d& v1, const vector3d& v2, bool radians) {
+  double dot = v1.dot(v2) / (v1.norm() * v2.norm());
+  double a = 0;
+  if (abs(dot - 1) < 1e-3)
+    a = 0;
+  else if ((dot + 1) < 1e-3)
+    a = xtal_consts::PI;
+  else
+    a = cos(dot);
+  return radians ? a : a * xtal_consts::DEG;
 }

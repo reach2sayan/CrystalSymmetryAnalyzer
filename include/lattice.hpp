@@ -34,6 +34,8 @@ enum class LatticeUniqueAxis : int { a = 0, b = 1, c = 2 };
 typedef LatticeUniqueAxis LUniqAx;
 
 using CellParams = std::tuple<double, double, double, double, double, double>;
+const std::unordered_map<std::string, unsigned short> cell_param_index_map{
+    {"a", 0}, {"b", 1}, {"c", 2}, {"alpha", 3}, {"beta", 4}, {"gamma", 5}};
 
 enum class LatticeType : int {
   triclinic = 0,
@@ -48,23 +50,14 @@ enum class LatticeType : int {
 };
 typedef LatticeType LType;
 
-struct LatticeParams {
-  double area = 0;
-  bool random = true;
-  bool allow_volume_reset = false;
-  LatticeUniqueAxis unique_axis = LatticeUniqueAxis::a;
-  vector3d max_l{};
-  vector3d min_l{};
-  vector3d mid_l{};
-};
-
 class Lattice {
  public:
   Lattice(const LType _ltype, const double _volume = xtal_consts::FEMPTY,
-	  const matrix3d& _matrix = {},
-	  const PBC& _pbc = (PBC() << 1, 1, 1).finished(), bool _random = true,
-	  bool _allow_volume_reset = false, const LUniqAx _uax = LUniqAx::c);
+	  const matrix3d& _matrix = {}, const PBC& _pbc = {true, true, true},
+	  bool _random = true, bool _allow_volume_reset = false,
+	  const LUniqAx _uax = LUniqAx::c);
 
+  Lattice() = delete;
   Lattice(const Lattice& other) = default;
   Lattice(Lattice&& other) = default;
 
@@ -81,7 +74,7 @@ class Lattice {
   CellParams get_parameters(bool degree = false) const;
 
  private:
-  PBC pbc = (PBC() << 1, 1, 1).finished();
+  PBC pbc{true, true, true};
   LType ltype = LType::cubic;
   double a = 1.0;
   double b = 1.0;
@@ -113,4 +106,13 @@ matrix3d random_shear_matrix(double width = 1.0, bool unitary = false);
 vector3d random_vector(const vector3d& minvector = {0.0, 0.0, 0.0},
 		       const vector3d& maxvector = {1.0, 1.0, 1.0},
 		       double width = 0.35, bool unit = false);
+
+double gaussian(const double min, const double max, const double sigma = 3.0);
+
+matrix3d parametric_to_matrix(const std::array<double, 6>& cell_params,
+			      bool radians = true);
+
+std::array<double, 6> matrix_to_parametric(const matrix3d& matrix,
+					   bool radians = true);
+
 #endif

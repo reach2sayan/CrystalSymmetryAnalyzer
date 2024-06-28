@@ -200,10 +200,10 @@ const StrainMapType strain_patterns{
     {CijSymmetryTypes::TETRAGONAL_H, std::move(strain_pattern_tetragonal_high)},
     {CijSymmetryTypes::TETRAGONAL_L, std::move(strain_pattern_tetragonal_low)},
     {CijSymmetryTypes::ORTHORHOMBIC, std::move(strain_pattern_orthorhombic)},
+    {CijSymmetryTypes::MONOCLINIC, std::move(strain_pattern_monoclinic)},
     {CijSymmetryTypes::HEXAGONAL, std::move(strain_pattern_hexagonal)},
-    {CijSymmetryTypes::NONE, std::move(strain_pattern_none)},
     {CijSymmetryTypes::TRICLINIC, std::move(strain_pattern_triclinic)},
-};
+    {CijSymmetryTypes::NONE, std::move(strain_pattern_none)}};
 
 }  // namespace ElasticityUtils
 

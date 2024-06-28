@@ -1,6 +1,10 @@
 #include "lattice.hpp"
 
+#include <eigen3/Eigen/src/Core/Matrix.h>
+
 #include <cmath>
+#include <cstddef>
+#include <cstdio>
 #include <random>
 
 #include "constants.hpp"
@@ -276,33 +280,221 @@ vector3d random_vector(const vector3d& minvector, const vector3d& maxvector,
   return retvec;
 }
 
-/*
-def random_vector(minvec=[0.0, 0.0, 0.0], maxvec=[1.0, 1.0, 1.0], width=0.35,
-unit=False):
-    """
-    Generate a random vector for lattice constant generation. The ratios between
-    x, y, and z of the returned vector correspond to the ratios between a, b,
-    and c. Results in a Gaussian distribution of the natural log of the ratios.
+double gaussian(const double min, const double max, const double sigma) {
+  double center = (max + min) * 0.5;
+  double delta = fabs(max - min) * 0.5;
+  double ratio = delta / sigma;
+  std::normal_distribution<double> rnd{center, ratio};
+  while (true) {
+    double x = rnd(rand_generator);
+    if (x > min && x < max) return x;
+  }
+  return center;
+}
 
-    Args:
-	minvec: the bottom-left-back minimum point which can be chosen
-	maxvec: the top-right-front maximum point which can be chosen
-	width: the width of the normal distribution to use when choosing values.
-	    Passed to np.random.normal
-	unit: whether or not to normalize the vector to determinant 1
+matrix3d parametric_to_matrix(const std::array<double, 6>& cell_params,
+			      bool radians) {
+  double a = cell_params[0];
+  double b = cell_params[1];
+  double c = cell_params[2];
 
-    Returns:
-	a 1x3 numpy array of floats
-    """
-    vec = np.array(
-	[
-	    np.exp(np.random.normal(scale=width)),
-	    np.exp(np.random.normal(scale=width)),
-	    np.exp(np.random.normal(scale=width)),
-	]
-    )
-    if unit:
-	return vec / np.linalg.norm(vec)
-    else:
-	return vec
-				*/
+  double alpha = cell_params[3];
+  double beta = cell_params[4];
+  double gamma = cell_params[5];
+  if (!radians) {
+    alpha *= xtal_consts::RAD;
+    beta *= xtal_consts::RAD;
+    gamma *= xtal_consts::RAD;
+  }
+
+  matrix3d matrix = matrix3d::Zero();
+  double c1 = c * cos(beta);
+  double c2 = (c * (cos(alpha) - (cos(beta) * cos(gamma)))) / sin(gamma);
+  matrix(0, 0) = a;
+  matrix(1, 0) = b * cos(gamma);
+  matrix(1, 0) = b * sin(gamma);
+  matrix(2, 0) = c1;
+  matrix(2, 1) = c2;
+  matrix(2, 2) = sqrt(c * c - c1 * c1 - c2 * c2);
+
+  return matrix;
+}
+
+std::array<double, 6> matrix_to_parametric(const matrix3d& matrix,
+					   bool radians) {
+  std::array<double, 6> cell_parameters{0, 0, 0, 0, 0, 0};
+
+  cell_parameters[0] = matrix(0, Eigen::all).norm();
+  cell_parameters[1] = matrix(1, Eigen::all).norm();
+  cell_parameters[2] = matrix(2, Eigen::all).norm();
+
+  cell_parameters[3] = angle(matrix(1, Eigen::all), matrix(2, Eigen::all));
+  cell_parameters[4] = angle(matrix(0, Eigen::all), matrix(2, Eigen::all));
+  cell_parameters[5] = angle(matrix(0, Eigen::all), matrix(1, Eigen::all));
+
+  if (not radians) {
+    cell_parameters[3] *= xtal_consts::DEG;
+    cell_parameters[4] *= xtal_consts::DEG;
+    cell_parameters[5] *= xtal_consts::DEG;
+  }
+
+  return cell_parameters;
+}
+
+std::array<double, 6> generate_cellpara_0D(LatticeType ltype, double volume,
+					   double maxattempts = 100) {
+  double radius = cbrt((3 * volume) / (xtal_consts::PI * 4));
+  double angle = 0.5 * xtal_consts::PI;
+  double alpha = xtal_consts::PI / 2;
+  double beta = xtal_consts::PI / 2;
+  double gamma = xtal_consts::PI / 2;
+  double x = (4.0 / 3.0) * xtal_consts::PI;
+
+  switch (ltype) {
+    case LatticeType::ellipsoidal:
+      for (size_t i = 0; i < maxattempts; ++i) {
+	auto vec = random_vector();
+	double c = vec[2] / (vec[0] * vec[1]) * cbrt(volume / x);
+	double a = sqrt((volume / x) / c);
+	double b = sqrt((volume / x) / c);
+	if ((a / c < 10.0) and (c / a < 10.0))
+	  return {a, b, c, alpha, beta, gamma};
+      }
+    case LatticeType::spherical:
+      return {radius, radius, radius, angle, angle, angle};
+  }
+  return {radius, radius, radius, angle, angle, angle};
+}
+
+std::array<double, 6> generate_cellpara_1D(LatticeType ltype, double volume,
+					   double min_angle = xtal_consts::PI /
+							      6,
+					   double minvec = 1.2, double area = 0,
+					   double maxattempts = 100) {
+  int PA = 3;
+  double max_angle = xtal_consts::PI - min_angle;
+  for (size_t i = 0; i < maxattempts; ++i) {
+    std::array<double, 3> abc{1, 1, 1};
+    double thickness = 0;
+    if (area == 0) {
+      vector3d v = random_vector();
+      thickness = cbrt(volume) * (v[0] / (v[0] * v[1] * v[2]));
+    } else {
+      thickness = volume / area;
+    }
+    abc[PA - 1] = thickness;
+    double alpha = xtal_consts::PI / 2;
+    double beta = xtal_consts::PI / 2;
+    double gamma = xtal_consts::PI / 2;
+    switch (ltype) {
+      case LatticeType::triclinic:
+	matrix3d mat = random_shear_matrix(0.2);
+	auto [a, b, c, alpha, beta, gamma] = matrix_to_parametric(mat);
+	double x = sqrt(1 - cos(alpha) * cos(alpha) - cos(beta) * cos(beta) -
+			cos(gamma) * cos(gamma));
+	abc[PA - 1] =
+	    abc[PA - 1] / x;  // scale thickness by outer product of vectors
+	double ab = volume / (abc[PA - 1] * x);
+	double ratio = a / b;
+	switch (PA) {
+	  case 3:
+	    abc[0] = sqrt(ab * ratio);
+	    abc[1] = sqrt(ab / ratio);
+	    break;
+	  case 2:
+	    abc[0] = sqrt(ab * ratio);
+	    abc[2] = sqrt(ab / ratio);
+	    break;
+	  case 1:
+	    abc[1] = sqrt(ab * ratio);
+	    abc[2] = sqrt(ab / ratio);
+	    break;
+	}
+	break;
+      case LatticeType::monoclinic:
+	alpha = gaussian(min_angle, max_angle);
+	x = sin(alpha);
+	ab = volume / abc[PA - 1] * x;
+	ratio = a / b;
+	switch (PA) {
+	  case 3:
+	    abc[0] = sqrt(ab * ratio);
+	    abc[1] = sqrt(ab / ratio);
+	    break;
+	  case 2:
+	    abc[0] = sqrt(ab * ratio);
+	    abc[2] = sqrt(ab / ratio);
+	    break;
+	  case 1:
+	    abc[1] = sqrt(ab * ratio);
+	    abc[2] = sqrt(ab / ratio);
+	    break;
+	}
+	break;
+      case LatticeType::orthorhombic:
+	vector3d vec = random_vector();
+	switch (PA) {
+	  case 3:
+	    ratio = abs(vec[0] / vec[1]);
+	    abc[1] = sqrt(volume / (thickness * ratio));
+	    abc[0] = abc[1] * ratio;
+	    break;
+	  case 2:
+	    ratio = abs(vec[0] / vec[2]);
+	    abc[2] = sqrt(volume / (thickness * ratio));
+	    abc[0] = abc[2] * ratio;
+	    break;
+	  case 1:
+	    ratio = abs(vec[1] / vec[2]);
+	    abc[2] = sqrt(volume / (thickness * ratio));
+	    abc[1] = abc[2] * ratio;
+	    break;
+	}
+	break;
+      case LatticeType::tetragonal:
+	switch (PA) {
+	  case 3:
+	    abc[0] = sqrt(volume / thickness);
+	    abc[1] = sqrt(volume / thickness);
+	    break;
+	  case 2:
+	    abc[0] = abc[1];
+	    abc[2] = volume / (abc[PA - 1] * abc[PA - 1]);
+	    break;
+	  case 1:
+	    abc[1] = abc[0];
+	    abc[2] = volume / (abc[PA - 1] * abc[PA - 1]);
+	    break;
+	}
+	break;
+      case LatticeType::hexagonal:
+      case LatticeType::trigonal:
+	gamma = xtal_consts::PI / 3 * 2;
+	x = sqrt(3.0) / 2.0;
+	switch (PA) {
+	  case 3:
+	    abc[0] = sqrt((volume / x) / abc[PA - 1]);
+	    abc[1] = sqrt((volume / x) / abc[PA - 1]);
+	    break;
+	  case 2:
+	    abc[0] = abc[1];
+	    abc[2] = (volume / x) / (thickness * thickness);
+	    break;
+	  case 1:
+	    abc[1] = abc[0];
+	    abc[2] = (volume / x) / (thickness * thickness);
+	    break;
+	}
+    }
+    auto para =
+	std::array<double, 6>{abc[0], abc[1], abc[2], alpha, beta, gamma};
+    double a = abc[0];
+    double b = abc[1];
+    double c = abc[2];
+    double maxvec = (a * b * c) / (minvec * minvec);
+    double min_l = minvec;
+    double mid_l = min_l;
+    double max_l = mid_l;
+    double l_min = std::min(std::min(a, b), c);
+    double l_max = std::max(std::max(a, b), c);
+  }

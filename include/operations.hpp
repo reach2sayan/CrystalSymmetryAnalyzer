@@ -13,4 +13,7 @@ vector<vector3d> create_matrix(const PBC& pbc = {true, true, true},
 vector<vector3d> filtered_coords(const vector<vector3d>& coords,
 				 const PBC& pbc = {true, true, true});
 
+double angle(const vector3d& vector_a, const vector3d& vector_b,
+	     bool radians = true);
+
 #endif
